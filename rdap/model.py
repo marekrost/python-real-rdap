@@ -165,32 +165,35 @@ class SecureDns:
             key_data=KeyData.parse(data['keyData']) if 'keyData' in data else None)
 
 
+# Cannot apply dataclass due to possibly mandatory arguments in child classes
+# Dataclass cannot generate such constructors properly with full list of arguments
 class RdapObject:
     def __init__(self, object_class_name: str, entities: list = None, events: list = None, handle: str = None,
-                 links: list = None, port43: str = None, remarks: list = None, status: str = None):
+                 links: list = None, port43: str = None, notices: list = None, remarks: list = None,
+                 status: str = None):
         self.object_class_name = object_class_name
         self.entities = entities
         self.events = events
         self.handle = handle
         self.links = links
         self.port43 = port43
+        self.notices = notices
         self.remarks = remarks
         self.status = status
 
+    def __tostring(self):
+        members = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("__")]
+        return f'{self.__class__.__name__}(' + f', '.join([f'{member}={getattr(self, member)}' for member in members]) \
+               + f')'
+
     def __format__(self, format_spec):
-        return f'RdapObject(object_class_name={self.object_class_name}, entities={self.entities}, ' \
-               f'events={self.events}, handle={self.handle}, links={self.links}, port43={self.entities}, ' \
-               f'remarks={self.remarks}, status={self.status})'
+        return self.__tostring()
 
     def __repr__(self):
-        return f'RdapObject(object_class_name={self.object_class_name}, entities={self.entities}, ' \
-               f'events={self.events}, handle={self.handle}, links={self.links}, port43={self.entities}, ' \
-               f'remarks={self.remarks}, status={self.status})'
+        return self.__tostring()
 
     def __str__(self):
-        return f'RdapObject(object_class_name={self.object_class_name}, entities={self.entities}, ' \
-               f'events={self.events}, handle={self.handle}, links={self.links}, port43={self.entities}, ' \
-               f'remarks={self.remarks}, status={self.status})'
+        return self.__tostring()
 
     @staticmethod
     def _parse_args(data: dict) -> dict:
@@ -201,7 +204,7 @@ class RdapObject:
             'handle': data['handle'] if 'handle' in data else None,
             'links': ([Link.parse(link) for link in data['links']]) if 'links' in data else None,
             'port43': data['port43'] if 'port43' in data else None,
-            'remarks': ([Link.parse(remark) for remark in data['remarks']]) if 'remarks' in data else None,
+            'remarks': ([Notice.parse(remark) for remark in data['remarks']]) if 'remarks' in data else None,
             'status': data['status'] if 'status' in data else None
         }
 
@@ -261,7 +264,7 @@ class Domain(RdapObject):
                  variants: list = None, public_ids: list = None, network: str = None, **kwargs):
         super().__init__(**kwargs)
         self.ldh_name = ldh_name
-        self.unicodeName = unicode_name
+        self.unicode_name = unicode_name
         self.variants = variants
         self.nameservers = nameservers
         self.secure_dns = secure_dns
