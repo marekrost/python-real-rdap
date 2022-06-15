@@ -1,9 +1,7 @@
 import rdap.client
-import pprint
 
-client = rdap.client.RdapClient()
+if __name__ == "__main__":
+    client = rdap.client.RdapClient()
+    domain = client.get_domain('wordpress.com')
 
-domain = client.get_domain('wordpress.com')
-
-print(domain.handle)
-print(domain)
+    print(domain)

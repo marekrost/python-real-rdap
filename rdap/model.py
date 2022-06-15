@@ -216,7 +216,7 @@ class Entity(RdapObject):
     def __init__(self, vcard_array: list, roles: list, public_ids: list = None, networks: list = None,
                  autnums: list = None, **kwargs):
         super().__init__(**kwargs)
-        self.vcard_array = vcard_array
+        self.vcard_array = vcard_array # jCard format of vCard 4.0, see https://datatracker.ietf.org/doc/html/rfc7095
         self.roles = roles
         self.public_ids = public_ids
         self.networks = networks

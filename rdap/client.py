@@ -8,13 +8,6 @@ class RdapClient:
     def __init__(self):
         self.__bootstrap()
 
-    def get_domain(self, domain):
-        tld = urllib3.util.parse_url(domain).host.split('.')[-1]
-        authority = self.authorities[tld]
-        data = RdapClient.__get_data(authority + '/domain/' + domain)
-        print(data)
-        return rdap.model.Domain.parse(data)
-
     def __bootstrap(self):
         authority_list = RdapClient.__get_data('https://data.iana.org/rdap/dns.json')
         self.authorities = {}
@@ -30,3 +23,17 @@ class RdapClient:
             raise RuntimeError("RDAP [{0}] returned status {1}. Response content: {2}".format(
                 uri, data_response.status_code, data_content))
         return json.loads(data_content)
+
+    def get_domain(self, domain):
+        tld = urllib3.util.parse_url(domain).host.split('.')[-1]
+        authority = self.authorities[tld]
+        data = RdapClient.__get_data(authority + '/domain/' + domain)
+        domain = rdap.model.Domain.parse(data)
+
+        # get more relevant data if such link exists
+        rel_links = [link for link in domain.links if 'related' in link.rel]
+        if rel_links:
+            data = RdapClient.__get_data(rel_links[0].href)
+            domain = rdap.model.Domain.parse(data)
+
+        return domain
