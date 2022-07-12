@@ -26,7 +26,11 @@ class RdapClient:
 
     def get_domain(self, domain):
         tld = urllib3.util.parse_url(domain).host.split('.')[-1]
-        authority = self.authorities[tld]
+        try:
+            authority = self.authorities[tld]
+        except Exception as e:
+            print(e)
+
         data = RdapClient.__get_data(authority + '/domain/' + domain)
         domain = rdap.model.Domain.parse(data)
 
