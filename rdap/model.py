@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-
+from vobject import vcard
 
 @dataclass
 class Link:
@@ -129,7 +129,7 @@ class KeyData:
     protocol: int
     public_key: str
     algorithm: str
-    events: list = None,
+    events: list = None
     links: list = None
 
     @staticmethod
@@ -213,10 +213,10 @@ class Entity(RdapObject):
     """
         https://datatracker.ietf.org/doc/html/rfc7483#section-5.1
     """
-    def __init__(self, vcard_array: list, roles: list, public_ids: list = None, networks: list = None,
+    def __init__(self, vcard_obj: list, roles: list, public_ids: list = None, networks: list = None,
                  autnums: list = None, **kwargs):
         super().__init__(**kwargs)
-        self.vcard_array = vcard_array # jCard format of vCard 4.0, see https://datatracker.ietf.org/doc/html/rfc7095
+        self.vcard_obj = vcard_obj # jCard format of vCard 4.0, see https://datatracker.ietf.org/doc/html/rfc7095
         self.roles = roles
         self.public_ids = public_ids
         self.networks = networks
@@ -226,7 +226,7 @@ class Entity(RdapObject):
     def parse(data: dict):
         parent_args = RdapObject._parse_args(data)
         return Entity(
-            vcard_array=data['vcardArray'],
+            vcard_obj=vcard.fromJCards(data['vcardArray']),
             roles=data['roles'],
             public_ids=([PublicId.parse(pid) for pid in data['publicIds']]) if 'publicIds' in data else None,
             networks=([IpNetwork.parse(network) for network in data['networks']]) if 'network' in data else None,
