@@ -1,7 +1,9 @@
 import requests
 import json
 import urllib3.util
-import rdap.model
+
+import jobs.rdap.rdaplib.exceptions as exceptions
+import jobs.rdap.rdaplib.model as model
 
 
 class RdapClient:
@@ -20,6 +22,8 @@ class RdapClient:
         data_response = requests.get(uri)
         data_content = data_response.content.decode('utf8')
         if data_response.status_code != 200:
+            if data_response.status_code == 404:
+                raise exceptions.RdapNotFoundException()
             raise RuntimeError("RDAP [{0}] returned status {1}. Response content: {2}".format(
                 uri, data_response.status_code, data_content))
         return json.loads(data_content)
@@ -31,13 +35,13 @@ class RdapClient:
         except Exception as e:
             print(e)
 
-        data = RdapClient.__get_data(authority + '/domain/' + domain)
-        domain = rdap.model.Domain.parse(data)
+        data = RdapClient.__get_data(authority.rstrip('/') + '/domain/' + domain)
+        domain = model.Domain.parse(data)
 
         # get more relevant data if such link exists
         rel_links = [link for link in domain.links if 'related' in link.rel]
         if rel_links:
             data = RdapClient.__get_data(rel_links[0].href)
-            domain = rdap.model.Domain.parse(data)
+            domain = model.Domain.parse(data)
 
         return domain

@@ -2,7 +2,11 @@ class RdapException(Exception):
     pass
 
 
-class RdapError(Exception):
+class RdapNotFoundException(RdapException):
+    pass
+
+
+class RdapError(RdapException):
     def __init__(self, error_code: int, title: str, description: list):
         self.error_code = error_code
         self.title = title

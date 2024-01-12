@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from vobject import vcard
+
 
 @dataclass
 class Link:
@@ -41,7 +41,7 @@ class Notice:
     def parse(data: dict):
         return Notice(
             description=data['description'],
-            links=([Link.parse(link) for link in data['link']]) if 'links' in data else None,
+            links=([Link.parse(link) for link in data['links']]) if 'links' in data else None,
             title=data['title'] if 'title' in data else None,
             type=data['type'] if 'type' in data else None)
 
@@ -72,6 +72,9 @@ class PublicId:
     """
     identifier: str
     type: str
+
+    def unique_identifier(self):
+        return (self.type + '-' + self.identifier).lower().strip().replace(' ', '-')
 
     @staticmethod
     def parse(data: dict):
@@ -129,7 +132,7 @@ class KeyData:
     protocol: int
     public_key: str
     algorithm: str
-    events: list = None
+    events: list = None,
     links: list = None
 
     @staticmethod
@@ -152,8 +155,8 @@ class SecureDns:
     zone_signed: bool = None
     delegation_signed: bool = None
     max_sig_life: int = None
-    ds_data: DsData = None
-    key_data: KeyData = None
+    ds_data: list = None
+    key_data: list = None
 
     @staticmethod
     def parse(data: dict):
@@ -161,8 +164,8 @@ class SecureDns:
             zone_signed=bool(data['zoneSigned']) if 'zoneSigned' in data else None,
             delegation_signed=bool(data['delegationSigned']) if 'delegationSigned' in data else None,
             max_sig_life=int(data['maxSigLife']) if 'maxSigLife' in data else None,
-            ds_data=DsData.parse(data['dsData']) if 'dsData' in data else None,
-            key_data=KeyData.parse(data['keyData']) if 'keyData' in data else None)
+            ds_data=([DsData.parse(ds_data) for ds_data in data['dsData']]) if 'dsData' in data else None,
+            key_data=([KeyData.parse(key_data) for key_data in data['keyData']]) if 'keyData' in data else None)
 
 
 # Cannot apply dataclass due to possibly mandatory arguments in child classes
@@ -184,7 +187,7 @@ class RdapObject:
     def __tostring(self):
         members = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("__")]
         return f'{self.__class__.__name__}(' + f', '.join([f'{member}={getattr(self, member)}' for member in members]) \
-               + f')'
+            + f')'
 
     def __format__(self, format_spec):
         return self.__tostring()
@@ -211,12 +214,13 @@ class RdapObject:
 
 class Entity(RdapObject):
     """
-        https://datatracker.ietf.org/doc/html/rfc7483#section-5.1
+        https://datatracker.ietf.org/doc/html/rfc9083#name-the-entity-object-class
     """
-    def __init__(self, vcard_obj: list, roles: list, public_ids: list = None, networks: list = None,
+
+    def __init__(self, vcard_array: list, roles: list, public_ids: list = None, networks: list = None,
                  autnums: list = None, **kwargs):
         super().__init__(**kwargs)
-        self.vcard_obj = vcard_obj # jCard format of vCard 4.0, see https://datatracker.ietf.org/doc/html/rfc7095
+        self.vcard_array = vcard_array  # jCard format of vCard 4.0, see https://datatracker.ietf.org/doc/html/rfc7095
         self.roles = roles
         self.public_ids = public_ids
         self.networks = networks
@@ -224,10 +228,19 @@ class Entity(RdapObject):
 
     @staticmethod
     def parse(data: dict):
+
+        # Workaround for certain RDAP servers who package some of their entities into two level lists for no reason
+        if isinstance(data, list):
+            data = data[0]
+
+        # Workaround for certain RDAP servers who don't bother specifying object type
+        if 'objectClassName' not in data:
+            data['objectClassName'] = 'entity'
+
         parent_args = RdapObject._parse_args(data)
         return Entity(
-            vcard_obj=vcard.fromJCards(data['vcardArray']),
-            roles=data['roles'],
+            vcard_array=data['vcardArray'] if 'vcardArray' in data else None,
+            roles=data['roles'] if 'roles' in data else [],
             public_ids=([PublicId.parse(pid) for pid in data['publicIds']]) if 'publicIds' in data else None,
             networks=([IpNetwork.parse(network) for network in data['networks']]) if 'network' in data else None,
             autnums=([Autnum.parse(autnum) for autnum in data['autnums']]) if 'autnums' in data else None,
@@ -236,7 +249,7 @@ class Entity(RdapObject):
 
 class NameServer(RdapObject):
     """
-        https://datatracker.ietf.org/doc/html/rfc7483#section-5.2
+        https://datatracker.ietf.org/doc/html/rfc9083#name-the-nameserver-object-class
     """
 
     def __init__(self, ldh_name: str, unicode_name: str = None, ip_addresses: IpAddresses = None, **kwargs):
@@ -257,7 +270,7 @@ class NameServer(RdapObject):
 
 class Domain(RdapObject):
     """
-        https://datatracker.ietf.org/doc/html/rfc7483#section-5.3
+        https://datatracker.ietf.org/doc/html/rfc9083#name-the-domain-object-class
     """
 
     def __init__(self, ldh_name: str, nameservers: list, secure_dns: SecureDns, unicode_name: str = None,
@@ -278,8 +291,8 @@ class Domain(RdapObject):
             ldh_name=data['ldhName'],
             unicode_name=data['unicodeName'] if 'unicodeName' in data else None,
             variants=data['variants'] if 'variants' in data else None,
-            nameservers=[NameServer.parse(ns) for ns in data['nameservers']],
-            secure_dns=SecureDns.parse(data['secureDNS']),
+            nameservers=[NameServer.parse(ns) for ns in data['nameservers']] if 'nameservers' in data else None,
+            secure_dns=SecureDns.parse(data['secureDNS']) if 'secureDNS' in data else None,
             public_ids=([PublicId.parse(pid) for pid in data['publicIds']]) if 'publicIds' in data else None,
             network=IpNetwork.parse(data['network']) if 'network' in data else None,
             **parent_args)
@@ -287,7 +300,7 @@ class Domain(RdapObject):
 
 class IpNetwork(RdapObject):
     """
-        https://datatracker.ietf.org/doc/html/rfc7483#section-5.4
+        https://datatracker.ietf.org/doc/html/rfc9083#name-the-ip-network-object-class
     """
 
     def __init__(self, start_address: str, end_address: str, ip_version: str, name: str, type: str, country: str,
@@ -317,7 +330,7 @@ class IpNetwork(RdapObject):
 
 class Autnum(RdapObject):
     """
-        https://datatracker.ietf.org/doc/html/rfc7483#section-5.5
+        https://datatracker.ietf.org/doc/html/rfc9083#name-the-autonomous-system-numbe
     """
 
     def __init__(self, start_autnum: int, end_autnum: int, name: str, type: str, country: str, **kwargs):

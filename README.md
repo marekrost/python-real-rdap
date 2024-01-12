@@ -1,10 +1,9 @@
-# rdap-py
+# Real-life RDAP Python library
 
-Python parsing library for Registration Data Access Protocol
+Python RDAP parsing library for the real world.
 
-## Basic information
+## Key features
 
-This is an attempt to:
-* implement the RDAP model according to RFC 7483 in Python,
-* download data from respective authoritative servers over HTTP / HTTPS,
-* parse data & populate the model from their JSON data structures.
+* Implements [RFC9082](https://datatracker.ietf.org/doc/html/rfc9082)
+* Follows 'related' links to extract more information about requested object.
+* Capable of parsing even some not-exactly valid RDAP query results.
